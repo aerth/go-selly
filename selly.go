@@ -142,6 +142,27 @@ type Request struct {
 	WebhookURL string `json:"webhook_url"`
 }
 
+type Webhook struct {
+	ID            string      `json:"id"`
+	ProductID     string      `json:"product_id"`
+	Email         string      `json:"email"`
+	IPAddress     string      `json:"ip_address"`
+	CountryCode   string      `json:"country_code"`
+	UserAgent     string      `json:"user_agent"`
+	Value         string      `json:"value"`
+	Currency      string      `json:"currency"`
+	Gateway       string      `json:"gateway"`
+	RiskLevel     int         `json:"risk_level"`
+	Status        int         `json:"status"`
+	Delivered     string      `json:"delivered"`
+	CryptoValue   interface{} `json:"crypto_value"`
+	CryptoAddress interface{} `json:"crypto_address"`
+	Referral      string      `json:"referral"`
+	WebhookType   int         `json:"webhook_type"`
+	CreatedAt     string      `json:"created_at"`
+	UpdatedAt     string      `json:"updated_at"`
+}
+
 // New creates a new Selly instance
 func New(email, token, useragent string) *Selly {
 	if useragent == "" {
