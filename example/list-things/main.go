@@ -37,7 +37,7 @@ func main() {
 	// List Orders
 	fmt.Printf("Orders: %v\n", len(o))
 	for _, order := range o {
-		fmt.Printf("Order #%v (%s) %s (%s)\n", order.ID, order.Email, order.UsdValue, getPaid(order.Status))
+		fmt.Printf("Order #%v (%s)\nProduct ID: %s\nCurrency: %s\nUSD Value: $%s\nPayment Status: %s\n", order.ID, order.Email, order.ProductID, order.Currency, order.UsdValue, order.StatusString())
 	}
 	coupons, err := s.GetCoupons()
 	if err != nil {

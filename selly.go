@@ -341,3 +341,28 @@ func (s *Selly) postreq(url string, data interface{}) (*http.Response, error) {
 	}
 	return s.httpClient.Do(req)
 }
+
+// StatusString returns the order's status
+func (o Order) StatusString() (msg string) {
+	switch o.Status {
+	case 0:
+		msg = "No payment has been received"
+	case 51:
+		msg = "PayPal dispute/reversal"
+	case 52:
+		msg = "Order blocked due to risk level exceeding the maximum for the product"
+	case 53:
+		msg = "Partial payment. When crypto currency orders do not receive the full amount required due to fees, etc."
+	case 54:
+		msg = "Crypto currency transaction confirming"
+	//case 55:
+	//msg = "Payment pending on PayPal. Most commonly due to e-checks."
+	case 55:
+		msg = "Refunded"
+	case 100:
+		msg = "Payment complete"
+	default:
+		msg = "Unknown Status Code"
+	}
+	return msg
+}
