@@ -17,6 +17,7 @@ var Token = os.Getenv("TOKEN")
 var Email = os.Getenv("EMAIL")
 
 func main() {
+	log.SetFlags(log.Lshortfile)
 	s := selly.New(Email, Token, selly.DefaultUserAgent)
 	productList, err := s.GetProducts()
 	if err != nil {

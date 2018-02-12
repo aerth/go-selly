@@ -18,6 +18,7 @@ import (
 
 const DefaultUserAgent = "go-selly - https://github.com/aerth/go-selly"
 
+// Selly settings
 type Selly struct {
 	httpClient tgun.Client
 	Email      string
@@ -25,6 +26,25 @@ type Selly struct {
 	UserAgent  string // "Yourusername - website-using-api.com"
 }
 
+type ErrorResponse struct {
+	Message string `json:"message"`
+	Errors  struct {
+		Title []string `json:"title"`
+	} `json:"errors"`
+}
+
+func (e ErrorResponse) Error() string {
+	return e.String()
+}
+
+func (e ErrorResponse) String() string {
+	if len(e.Errors.Title) == 0 {
+		return e.Message
+	}
+	return fmt.Sprintf("%s: %s", e.Message, e.Errors.Title)
+}
+
+// Product ...
 type Product struct {
 	ID              string      `json:"id"`
 	Title           string      `json:"title"`
@@ -52,6 +72,7 @@ type Product struct {
 	UpdatedAt       time.Time   `json:"updated_at"`
 }
 
+// ProductGroup ...
 type ProductGroup struct {
 	ID         string    `json:"id"`
 	Title      string    `json:"title"`
@@ -60,6 +81,7 @@ type ProductGroup struct {
 	UpdatedAt  time.Time `json:"updated_at"`
 }
 
+// Order ...
 type Order struct {
 	ID            string            `json:"id"`
 	ProductID     string            `json:"product_id"`
@@ -83,6 +105,7 @@ type Order struct {
 	UpdatedAt     time.Time         `json:"updated_at"`
 }
 
+// Coupon ...
 type Coupon struct {
 	ID         int         `json:"id"`
 	Code       string      `json:"code"`
@@ -94,6 +117,7 @@ type Coupon struct {
 	UpdatedAt  time.Time   `json:"updated_at"`
 }
 
+// Query ...
 type Query struct {
 	ID          string    `json:"id"`
 	Secret      string    `json:"secret"`
@@ -118,7 +142,11 @@ type Request struct {
 	WebhookURL string `json:"webhook_url"`
 }
 
+// New creates a new Selly instance
 func New(email, token, useragent string) *Selly {
+	if useragent == "" {
+		useragent = DefaultUserAgent
+	}
 	httpclient := tgun.Client{
 		UserAgent:    useragent,
 		AuthUser:     email,
@@ -129,7 +157,12 @@ func New(email, token, useragent string) *Selly {
 	}
 }
 
+// NewProxy creates a new Selly instance using proxy for requests
+// Proxy format: socks5://127.0.0.1:1080
 func NewProxy(email, token, useragent, proxy string) *Selly {
+	if useragent == "" {
+		useragent = DefaultUserAgent
+	}
 	httpclient := tgun.Client{
 		UserAgent:    useragent,
 		AuthUser:     email,
@@ -141,6 +174,7 @@ func NewProxy(email, token, useragent, proxy string) *Selly {
 	}
 }
 
+// GetProduct returns product
 func (s *Selly) GetProduct(id string) (*Product, error) {
 	furl := "https://selly.gg/api/v2/products/%s"
 	b, err := s.httpClient.GetBytes(fmt.Sprintf(furl, id))
@@ -149,9 +183,15 @@ func (s *Selly) GetProduct(id string) (*Product, error) {
 	}
 	p := Product{}
 	err = json.Unmarshal(b, &p)
+	if err != nil {
+		errar := ErrorResponse{}
+		err = json.Unmarshal(b, &errar)
+		return nil, errar
+	}
 	return &p, err
 }
 
+// GetProducts returns all products
 func (s *Selly) GetProducts() ([]Product, error) {
 	furl := "https://selly.gg/api/v2/products"
 	b, err := s.httpClient.GetBytes(furl)
@@ -160,9 +200,15 @@ func (s *Selly) GetProducts() ([]Product, error) {
 	}
 	p := []Product{}
 	err = json.Unmarshal(b, &p)
+	if err != nil {
+		errar := ErrorResponse{}
+		err = json.Unmarshal(b, &errar)
+		return nil, errar
+	}
 	return p, err
 }
 
+// GetOrder returns specific orders
 func (s *Selly) GetOrder(id string) (*Order, error) {
 	furl := "https://selly.gg/api/v2/orders/%s"
 	b, err := s.httpClient.GetBytes(fmt.Sprintf(furl, id))
@@ -171,9 +217,15 @@ func (s *Selly) GetOrder(id string) (*Order, error) {
 	}
 	o := Order{}
 	err = json.Unmarshal(b, &o)
+	if err != nil {
+		errar := ErrorResponse{}
+		err = json.Unmarshal(b, &errar)
+		return nil, errar
+	}
 	return &o, err
 }
 
+// GetOrders returns all orders
 func (s *Selly) GetOrders() ([]Order, error) {
 	furl := "https://selly.gg/api/v2/orders"
 	b, err := s.httpClient.GetBytes(furl)
@@ -182,9 +234,15 @@ func (s *Selly) GetOrders() ([]Order, error) {
 	}
 	o := []Order{}
 	err = json.Unmarshal(b, &o)
+	if err != nil {
+		errar := ErrorResponse{}
+		err = json.Unmarshal(b, &errar)
+		return nil, errar
+	}
 	return o, err
 }
 
+// GetCoupon returns specific coupon
 func (s *Selly) GetCoupon(id string) (*Coupon, error) {
 	furl := "https://selly.gg/api/v2/coupons/%s"
 	b, err := s.httpClient.GetBytes(fmt.Sprintf(furl, id))
@@ -193,9 +251,15 @@ func (s *Selly) GetCoupon(id string) (*Coupon, error) {
 	}
 	c := Coupon{}
 	err = json.Unmarshal(b, &c)
+	if err != nil {
+		errar := ErrorResponse{}
+		err = json.Unmarshal(b, &errar)
+		return nil, errar
+	}
 	return &c, err
 }
 
+// GetCoupons returns all coupons
 func (s *Selly) GetCoupons() ([]Coupon, error) {
 	furl := "https://selly.gg/api/v2/coupons"
 	b, err := s.httpClient.GetBytes(furl)
@@ -204,9 +268,15 @@ func (s *Selly) GetCoupons() ([]Coupon, error) {
 	}
 	c := []Coupon{}
 	err = json.Unmarshal(b, &c)
+	if err != nil {
+		errar := ErrorResponse{}
+		err = json.Unmarshal(b, &errar)
+		return nil, errar
+	}
 	return c, err
 }
 
+// NewCoupon creates a new coupon and returns a coupon or error
 func (s *Selly) NewCoupon(code string, discount int, productIDs []string) (*Coupon, error) {
 	url := "https://selly.gg/api/v2/coupons"
 	coupon := Coupon{
@@ -230,6 +300,11 @@ func (s *Selly) NewCoupon(code string, discount int, productIDs []string) (*Coup
 		return nil, err
 	}
 	err = json.Unmarshal(body, &coupon)
+	if err != nil {
+		errar := ErrorResponse{}
+		err = json.Unmarshal(body, &errar)
+		return nil, errar
+	}
 	return &coupon, err
 }
 
