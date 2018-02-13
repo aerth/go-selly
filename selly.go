@@ -11,6 +11,8 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"os"
+	"strings"
 	"time"
 
 	"github.com/aerth/tgun"
@@ -20,14 +22,53 @@ const DefaultUserAgent = "go-selly - https://github.com/aerth/go-selly"
 
 // Selly settings
 type Selly struct {
-	httpClient tgun.Client
+	httpClient *tgun.Client
 	Email      string
 	Token      string
 	UserAgent  string // "Yourusername - website-using-api.com"
 }
 
+// New creates a new Selly instance
+func New(email, token, useragent string) *Selly {
+	if useragent == "" {
+		useragent = DefaultUserAgent
+	}
+	httpclient := &tgun.Client{
+		Debug:        os.Getenv("DEBUG") != "",
+		UserAgent:    useragent,
+		AuthUser:     email,
+		AuthPassword: token,
+		// Headers: map[string]string{
+		// 	"Content-Type": "application/javascript",
+		// },
+	}
+	return &Selly{
+		httpClient: httpclient,
+	}
+}
+
+// NewProxy creates a new Selly instance using proxy for requests
+// Proxy format: socks5://127.0.0.1:1080
+func NewProxy(email, token, useragent, proxy string) *Selly {
+	s := New(email, token, useragent)
+	s.httpClient.Proxy = proxy
+	return s
+}
+
+type Gateway string
+
+const (
+	Litecoin    Gateway = "Litecoin"
+	Bitcoin     Gateway = "Bitcoin"
+	Paypal      Gateway = "Paypal"
+	Ethereum    Gateway = "Ethereum"
+	Ripple      Gateway = "Ripple"
+	Dash        Gateway = "Dash"
+	BitcoinCash Gateway = "Bitcoin Cash"
+)
+
 type ErrorResponse struct {
-	Message string `json:"message"`
+	Message []string `json:"message"`
 	Errors  struct {
 		Title []string `json:"title"`
 	} `json:"errors"`
@@ -39,7 +80,7 @@ func (e ErrorResponse) Error() string {
 
 func (e ErrorResponse) String() string {
 	if len(e.Errors.Title) == 0 {
-		return e.Message
+		return strings.Join(e.Message, ";")
 	}
 	return fmt.Sprintf("%s: %s", e.Message, e.Errors.Title)
 }
@@ -91,7 +132,7 @@ type Order struct {
 	UserAgent     string            `json:"user_agent"`
 	Value         string            `json:"value"`
 	Currency      string            `json:"currency"`
-	Gateway       string            `json:"gateway"`
+	Gateway       Gateway           `json:"gateway,string"`
 	RiskLevel     int               `json:"risk_level"`
 	Status        int               `json:"status"`
 	Delivered     string            `json:"delivered"`
@@ -133,13 +174,13 @@ type Query struct {
 }
 
 type Request struct {
-	Title      string `json:"title"`
-	Gateway    string `json:"gateway"`
-	Email      string `json:"email"`
-	Value      string `json:"value"`
-	Currency   string `json:"currency"`
-	ReturnURL  string `json:"return_url"`
-	WebhookURL string `json:"webhook_url"`
+	Title      string  `json:"title"`
+	Gateway    Gateway `json:"gateway,string"`
+	Email      string  `json:"email"`
+	Value      string  `json:"value"`
+	Currency   string  `json:"currency"`
+	ReturnURL  string  `json:"return_url"`
+	WebhookURL string  `json:"webhook_url"`
 }
 
 type Webhook struct {
@@ -151,7 +192,7 @@ type Webhook struct {
 	UserAgent     string      `json:"user_agent"`
 	Value         string      `json:"value"`
 	Currency      string      `json:"currency"`
-	Gateway       string      `json:"gateway"`
+	Gateway       Gateway     `json:"gateway,string"`
 	RiskLevel     int         `json:"risk_level"`
 	Status        int         `json:"status"`
 	Delivered     string      `json:"delivered"`
@@ -163,36 +204,22 @@ type Webhook struct {
 	UpdatedAt     string      `json:"updated_at"`
 }
 
-// New creates a new Selly instance
-func New(email, token, useragent string) *Selly {
-	if useragent == "" {
-		useragent = DefaultUserAgent
-	}
-	httpclient := tgun.Client{
-		UserAgent:    useragent,
-		AuthUser:     email,
-		AuthPassword: token,
-	}
-	return &Selly{
-		httpClient: httpclient,
-	}
+// Payments can be created or deleted
+type Payment struct {
+	Title         string  `json:"title"`
+	Gateway       Gateway `json:"gateway, string"`
+	Email         string  `json:"email"`
+	Value         string  `json:"value"`
+	Currency      string  `json:"currency"`
+	ReturnURL     string  `json:"return_url"`
+	WebhookURL    string  `json:"webhook_url"`
+	Confirmations int     `json:"confirmations"`
 }
 
-// NewProxy creates a new Selly instance using proxy for requests
-// Proxy format: socks5://127.0.0.1:1080
-func NewProxy(email, token, useragent, proxy string) *Selly {
-	if useragent == "" {
-		useragent = DefaultUserAgent
-	}
-	httpclient := tgun.Client{
-		UserAgent:    useragent,
-		AuthUser:     email,
-		AuthPassword: token,
-		Proxy:        proxy,
-	}
-	return &Selly{
-		httpClient: httpclient,
-	}
+// PaymentResponse ...
+type PaymentResponse struct {
+	URL          string   `json:"url"`
+	ErrorMessage []string `json:"message"` // Error Messages
 }
 
 // GetProduct returns product
@@ -339,6 +366,7 @@ func (s *Selly) postreq(url string, data interface{}) (*http.Response, error) {
 	if err != nil {
 		return nil, err
 	}
+	req.Header.Set("Content-Type", "application/json")
 	return s.httpClient.Do(req)
 }
 
@@ -355,6 +383,7 @@ func (o Order) StatusString() (msg string) {
 		msg = "Partial payment. When crypto currency orders do not receive the full amount required due to fees, etc."
 	case 54:
 		msg = "Crypto currency transaction confirming"
+	//api docs have duplicate 55
 	//case 55:
 	//msg = "Payment pending on PayPal. Most commonly due to e-checks."
 	case 55:
@@ -365,4 +394,44 @@ func (o Order) StatusString() (msg string) {
 		msg = "Unknown Status Code"
 	}
 	return msg
+}
+
+// DeletePayment deletes a payment url, need ID (first section of url)
+func (s *Selly) DeletePayment(id string) error {
+	furl := fmt.Sprintf("https://selly.gg/api/v2/pay/%s", id)
+	// "81971eae19ff0924026d7b2a7502b20372c15df5"
+	req, err := http.NewRequest(http.MethodDelete, furl, nil)
+	if err != nil {
+		return err
+	}
+	resp, err := s.httpClient.Do(req)
+	deleteResponse := struct {
+		Status string `json:"status"`
+		// unknown other fields
+	}{}
+	err = json.NewDecoder(resp.Body).Decode(deleteResponse)
+	if deleteResponse.Status != "true" {
+		return fmt.Errorf("bad response: %s", deleteResponse.Status)
+	}
+	return nil
+}
+
+// Pay returns a checkout link.
+// If paymentresponse.URL is empty, check pay.ErrorMessage
+func (s *Selly) Pay(payment Payment) PaymentResponse {
+	url := "https://selly.gg/api/v2/pay"
+	// debug
+	//data = []byte(`{"title":"Selly Pay Example", "gateway":"Bitcoin", "email":"customer@email.com", "value":"10", "currency":"USD", "return_url":"https://website.com/return", "webhook_url":"https://website.com/webhook?secret=cEZMeEVlTz"}`)
+	resp, err := s.postreq(url, payment)
+	if err != nil {
+		return PaymentResponse{ErrorMessage: []string{err.Error()}}
+	}
+
+	paymentResponse := PaymentResponse{}
+	err = json.NewDecoder(resp.Body).Decode(&paymentResponse)
+	if err != nil {
+		return PaymentResponse{ErrorMessage: []string{err.Error()}}
+	}
+
+	return paymentResponse
 }
