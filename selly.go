@@ -11,7 +11,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"os"
 	"strings"
 	"time"
 
@@ -34,7 +33,6 @@ func New(email, token, useragent string) *Selly {
 		useragent = DefaultUserAgent
 	}
 	httpclient := &tgun.Client{
-		Debug:        os.Getenv("DEBUG") != "",
 		UserAgent:    useragent,
 		AuthUser:     email,
 		AuthPassword: token,
