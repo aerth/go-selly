@@ -17,7 +17,8 @@ import (
 	"github.com/aerth/tgun"
 )
 
-const DefaultUserAgent = "go-selly - https://github.com/aerth/go-selly"
+// DefaultUserAgent is used if UserAgent is empty
+const DefaultUserAgent = "go-selly/0.0.4"
 
 // Selly settings
 type Selly struct {
